@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_loading_upper">Загрузка...</string>
+    <string name="data_picker_hint">ДД/ММ/ГГГГ</string>
+    <string name="data_picker_pattern">dd/MM/yyyy</string>
+    <string name="alert_cannot_init">Невозможно инициализировать плагин</string>
+    <string name="alert_no_internet">Мобильный интернет отключен. Включите интернет, либо используйте WiFi</string>
+    <string name="roamnblack_custom_form">Форма ввода</string>
+    <string name="common_home_upper">Домой</string>
+</resources>

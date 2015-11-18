@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MainActivity</string>
+    
+    <string name="common_loading_upper">Loading...</string>
+    <string name="data_picker_hint">MM/DD/YYYY</string>
+    <string name="data_picker_pattern">MM/dd/yyyy</string>
+    
+    <string name="alert_cannot_init">Cannot initialize plugin</string>
+    <string name="alert_no_internet">Cellular Data is Turned off. Turn on cellular data or use Wi-Fi to access data</string>
+    
+    <string name="roamnblack_custom_form">Custom form</string>
+    <string name="common_home_upper">Home</string>
+</resources>
