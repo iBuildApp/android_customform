@@ -1,8 +1,9 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.xmlparser;
 
 import android.graphics.Color;
 import android.util.Log;
 import android.util.Xml;
+
 import java.util.ArrayList;
 
 /**

@@ -1,4 +1,4 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.xmlparser;
 
 /**
  * Entity class that form submit button.

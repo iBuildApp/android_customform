@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.ibuildapp.romanblack.CustomFormPlugin.views.SquareFrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="80dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:weightSum="1">
+        <com.ibuildapp.romanblack.CustomFormPlugin.views.SquareLinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="0.85"
+            android:gravity="center"
+            android:layout_gravity="bottom|left"
+            android:background="#FFF">
+        <com.ibuildapp.romanblack.CustomFormPlugin.views.SquareImageView
+            android:id="@+id/custom_form_photo_picker_main_image"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="2dp"
+            android:layout_marginRight="1dp"
+            android:layout_gravity="center"
+            android:background="#000"
+            android:scaleType="centerCrop"/>
+        </com.ibuildapp.romanblack.CustomFormPlugin.views.SquareLinearLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="right|top"
+        android:layout_gravity="right|top"
+        android:weightSum="1">
+        <com.ibuildapp.romanblack.CustomFormPlugin.views.SquareLinearLayout
+            android:id="@+id/custom_form_photo_picker_delete"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:layout_weight="0.35"
+            android:layout_gravity="top|right">
+            <com.ibuildapp.romanblack.CustomFormPlugin.views.SquareImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="2dp"
+                android:src="@drawable/customform_delete_pic"
+                android:scaleType="centerCrop"/>
+        </com.ibuildapp.romanblack.CustomFormPlugin.views.SquareLinearLayout>
+    </LinearLayout>
+</com.ibuildapp.romanblack.CustomFormPlugin.views.SquareFrameLayout>

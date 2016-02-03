@@ -1,4 +1,6 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.groups;
+
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItem;
 
 /**
  * Entity class that represents radio button item of group.

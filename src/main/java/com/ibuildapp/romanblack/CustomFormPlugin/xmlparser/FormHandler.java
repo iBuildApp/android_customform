@@ -1,7 +1,18 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.xmlparser;
 
 import android.graphics.Color;
 import android.util.Log;
+
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.Group;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemCalendar;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemCheckBox;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemDropDown;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemDropDownItem;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemEntryField;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemPhotoPicker;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemRadioButton;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemTextArea;
+
 import java.util.ArrayList;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -18,17 +29,19 @@ public class FormHandler extends DefaultHandler {
     private boolean inDatePicker = false;
     private boolean inDropDown = false;
     private boolean inRadioButton = false;
+    private boolean inPhotoPicker = false;
     private boolean inGroup = false;
     private boolean inLabel = false;
+    private boolean inLimit = false;
     private boolean inValue = false;
     private boolean inTitle = false;
     private boolean inEmail = false;
     private boolean inAddress = false;
     private boolean inSubject = false;
     private boolean inButton = false;
-    private int color1 = Color.parseColor("#4d4948");
-    private int color2 = Color.parseColor("#fff58d");
-    private int color3 = Color.parseColor("#fff7a2");
+    private int color1 = Color.parseColor("#4d4948");// background
+    private int color2 = Color.parseColor("#fff58d");// category header
+    private int color3 = Color.parseColor("#fff7a2");// text header
     private int color4 = Color.parseColor("#ffffff");
     private int color5 = Color.parseColor("#bbbbbb");
     private StringBuilder sb = null;
@@ -39,6 +52,7 @@ public class FormHandler extends DefaultHandler {
     private GroupItemCalendar datePicker = null;
     private GroupItemCheckBox checkBox = null;
     private GroupItemRadioButton radioButton = null;
+    private GroupItemPhotoPicker photoPicker = null;
     private Group group = null;
     private Form form = null;
     private ArrayList<Form> forms = null;
@@ -68,7 +82,11 @@ public class FormHandler extends DefaultHandler {
         } else if (localName.equalsIgnoreCase("radiobutton")) {
             radioButton = new GroupItemRadioButton();
             inRadioButton = true;
-        } else if (localName.equalsIgnoreCase("checkbox")) {
+        }
+        else if (localName.equalsIgnoreCase("photopicker")) {
+            photoPicker = new GroupItemPhotoPicker();
+            inPhotoPicker = true;
+        }else if (localName.equalsIgnoreCase("checkbox")) {
             checkBox = new GroupItemCheckBox();
             inCheckBox = true;
         } else if (localName.equalsIgnoreCase("entryfield")) {
@@ -101,7 +119,10 @@ public class FormHandler extends DefaultHandler {
             inValue = true;
         } else if (localName.equalsIgnoreCase("title")) {
             inTitle = true;
-        } else if (localName.equalsIgnoreCase("button")) {
+        }else if (localName.equalsIgnoreCase("limit")) {
+            inLimit = true;
+        }
+        else if (localName.equalsIgnoreCase("button")) {
             button = new FormButton();
             inButton = true;
         }
@@ -156,7 +177,25 @@ public class FormHandler extends DefaultHandler {
                 radioButton.setLabel(new String(ch, start, length));
             }
 
-        } else if (inCheckBox && inValue && (checkBox != null)) {
+        }else if (inPhotoPicker && inValue && (photoPicker != null)) {
+            String str = new String(ch, start, length);
+            if (!str.equals("\n") && !str.equals(" ")) {
+                photoPicker.setValue(new String(ch, start, length));
+            }
+        }
+        else if (inPhotoPicker && inLabel && (photoPicker != null)) {
+            String str = new String(ch, start, length);
+            if (!str.equals("\n") && !str.equals(" ")) {
+                photoPicker.setLabel(new String(ch, start, length));
+            }
+        }
+        else if (inPhotoPicker && inLimit && (photoPicker != null)) {
+            String str = new String(ch, start, length);
+            if (!str.equals("\n") && !str.equals(" ")) {
+                photoPicker.setLimit(Integer.valueOf(new String(ch, start, length)));
+            }
+        }
+        else if (inCheckBox && inValue && (checkBox != null)) {
             String str = new String(ch, start, length);
             if (!str.equals("\n") && !str.equals(" ")) {
                 checkBox.setValue(new String(ch, start, length));
@@ -230,7 +269,13 @@ public class FormHandler extends DefaultHandler {
             group.addItem(datePicker);
             datePicker = null;
             inDatePicker = false;
-        } else if (localName.equalsIgnoreCase("radiobutton")
+        }else if (localName.equalsIgnoreCase("photopicker")
+                && (photoPicker != null)) {
+            group.addItem(photoPicker);
+            photoPicker = null;
+            inPhotoPicker = false;
+        }
+        else if (localName.equalsIgnoreCase("radiobutton")
                 && (radioButton != null)) {
             group.addItem(radioButton);
             radioButton = null;
@@ -264,6 +309,8 @@ public class FormHandler extends DefaultHandler {
             inValue = false;
         } else if (localName.equalsIgnoreCase("title")) {
             inTitle = false;
+        } else if (localName.equalsIgnoreCase("limit")) {
+            inLimit = false;
         } else if (localName.equalsIgnoreCase("button")) {
             form.addButton(button);
             button = null;

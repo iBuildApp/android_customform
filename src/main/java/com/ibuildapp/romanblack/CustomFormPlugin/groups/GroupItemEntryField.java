@@ -1,4 +1,4 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.groups;
 
 /**
  * Entity class that represents entry field item of group.

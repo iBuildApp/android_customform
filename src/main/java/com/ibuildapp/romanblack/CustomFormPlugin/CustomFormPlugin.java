@@ -1,3 +1,13 @@
+/****************************************************************************
+ * *
+ * Copyright (C) 2014-2015 iBuildApp, Inc. ( http://ibuildapp.com )         *
+ * *
+ * This file is part of iBuildApp.                                          *
+ * *
+ * This Source Code Form is subject to the terms of the iBuildApp License.  *
+ * You can obtain one at http://ibuildapp.com/license/                      *
+ * *
+ ****************************************************************************/
 package com.ibuildapp.romanblack.CustomFormPlugin;
 
 import android.annotation.SuppressLint;
@@ -8,19 +18,23 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.database.Cursor;
 import android.graphics.*;
-import android.graphics.PorterDuff.Mode;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.text.*;
 import android.text.style.StyleSpan;
 import android.util.DisplayMetrics;
@@ -32,8 +46,28 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.*;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import com.appbuilder.sdk.android.AppBuilderModuleMain;
+import com.appbuilder.sdk.android.DialogSharing;
 import com.appbuilder.sdk.android.Utils;
 import com.appbuilder.sdk.android.Widget;
+import com.ibuildapp.romanblack.CustomFormPlugin.creators.GroupItemPhotoPickerCreator;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.Group;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItem;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemCalendar;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemCheckBox;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemDropDown;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemDropDownItem;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemEntryField;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemPhotoPicker;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemRadioButton;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.GroupItemTextArea;
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.PhotoPickerItem;
+import com.ibuildapp.romanblack.CustomFormPlugin.utils.ImageUtils;
+import com.ibuildapp.romanblack.CustomFormPlugin.utils.Statics;
+import com.ibuildapp.romanblack.CustomFormPlugin.views.PhotoPickerLayout;
+import com.ibuildapp.romanblack.CustomFormPlugin.xmlparser.EntityParser;
+import com.ibuildapp.romanblack.CustomFormPlugin.xmlparser.Form;
+import com.ibuildapp.romanblack.CustomFormPlugin.xmlparser.FormButton;
+
 import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -43,8 +77,12 @@ import java.util.*;
  * Main module class. Module entry point.
  * Represents custom form widget.
  */
-public class CustomFormPlugin extends AppBuilderModuleMain { 
+public class CustomFormPlugin extends AppBuilderModuleMain {
+    protected static final int CAMERA_REQUEST = 0;
+    protected static final int GALLERY_PICTURE = 1;
 
+    protected static int STARTED_LAYOUT_ID = 1;
+    private static String TEMP_FILE_NAME = "";
     private final int INITIALIZATION_FAILED = 0;
     private final int NEED_INTERNET_CONNECTION = 1;
     private final int LOADING_ABORTED = 2;
@@ -60,6 +98,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
     private Widget widget = null;
     private ProgressDialog progressDialog = null;
     private ArrayList<Form> forms = new ArrayList<Form>();
+    private List<PhotoPickerLayout> layouts = new ArrayList<>();
+
     private Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -106,7 +146,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
         }
     };
 
-   @SuppressLint("ValidFragment")
+    @SuppressLint("ValidFragment")
     public class DialogDatePicker  implements DatePickerDialog.OnDateSetListener{
 
         private int year;
@@ -123,26 +163,27 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
             edit = button;
             this.ef = ef;
         }
-    public Date getDate()
-    {
-        return new Date();
-    }
+        public Date getDate()
+        {
+            return new Date();
+        }
         public void onDateSet(DatePicker view, int year, int monthOfYear,
                               int dayOfMonth) {
             // TODO Auto-generated method stub
             // Do something with the date chosen by the user
-                try {
+            try {
                 this.year = year;
                 month = monthOfYear;
                 day = dayOfMonth;
-                edit.setTextColor(Statics.color1);
+                edit.setTextColor(Color.parseColor("#E6000000"));
                 Date date = new Date(year-1900, monthOfYear, day);
                 String datePattern = getResources().getString(R.string.data_picker_pattern);
-                DateFormat DATE_FORMAT = new SimpleDateFormat(datePattern);
+                DateFormat DATE_FORMAT = new SimpleDateFormat(datePattern);//DateFormat.getDateInstance(, Locale.getDefault());
                 String s = DATE_FORMAT.format(date);
                 ef.setSet(true);
                 ef.setDate(date);
                 edit.setText(s);
+                edit.setTextSize(18);
             }
             catch(Throwable e)
             {
@@ -156,9 +197,10 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
     @Override
     public void create() {
-        try { 
+        try { //ErrorLogging
 
             requestWindowFeature(Window.FEATURE_NO_TITLE);
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             setContentView(R.layout.romanblack_custom_form_main);
             setTitle(R.string.roamnblack_custom_form);
 
@@ -169,6 +211,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 handler.sendEmptyMessageDelayed(INITIALIZATION_FAILED, 100);
                 return;
             }
+
+            //dnevolin changes start
 
             String pluginXmlDataFilePath = store.getString("WidgetFile");
 
@@ -193,6 +237,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 widget.setNormalPluginXmlData(fileData.toString());
             }
 
+            //dnevolin changes end
+
             widgetMD5 = Utils.md5(widget.getPluginXmlData());
 
             if (widget.getTitle() != null && widget.getTitle().length() != 0) {
@@ -206,15 +252,12 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 return;
             }
             // topbar initialization
-            boolean showSideBar = ((Boolean) getIntent().getExtras().getSerializable("showSideBar")).booleanValue();
-            if (!showSideBar) {
-                setTopBarLeftButtonText(getResources().getString(R.string.common_home_upper), true, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        finish();
-                    }
-                });
-            }
+            setTopBarLeftButtonText(getResources().getString(R.string.common_home_upper), true, new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    finish();
+                }
+            });
             cachePath = widget.getCachePath() + "/customform-" + widget.getOrder();
             File cache = new File(this.cachePath);
             if (!cache.exists()) {
@@ -260,10 +303,10 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
             progressDialog.setCancelable(true);
             progressDialog.setOnCancelListener(
                     new DialogInterface.OnCancelListener() {
-                public void onCancel(DialogInterface arg0) {
-                    handler.sendEmptyMessage(LOADING_ABORTED);
-                }
-            });
+                        public void onCancel(DialogInterface arg0) {
+                            handler.sendEmptyMessage(LOADING_ABORTED);
+                        }
+                    });
 
             new Thread() {
                 @Override
@@ -299,10 +342,13 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
      */
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     private void buildForm() {
-        try {
+        try {//ErrorLogging
 
             View root = findViewById(R.id.romanblack_custom_form_main_root);
-            root.setBackgroundColor(Statics.color1); 
+          /*  if (isChemeDark(Statics.color1))
+                root.setBackgroundColor(Color.BLACK);
+            else*/
+            root.setBackgroundColor(Statics.color1); //Color.WHITE);
 
             if (!forms.isEmpty()) {
                 LinearLayout container =
@@ -350,6 +396,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             ll.setOrientation(LinearLayout.VERTICAL);
 
                             TextView label = new TextView(this);
+//                            label.setTextColor(Statics.color5);
                             label.setText(ef.getLabel());
                             label.setTextSize(16);
                             label.setPadding(0, 0, 0, (int) (10 * metrix.density));
@@ -362,12 +409,14 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
                             final Button value = new Button(this);
                             value.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT,
-                                    LayoutParams.WRAP_CONTENT));
-                            value.setTextSize(22);
+                                    Float.valueOf(55 * metrix.density).intValue()));
+                            value.setTextSize(18);
                             value.setGravity(Gravity.LEFT| Gravity.CENTER_VERTICAL);
-                            value.setTextColor(Color.parseColor("#E6000000"));
+                            value.setTextColor(Color.parseColor("#E6000000"));//Statics.color1);
                             value.setBackgroundResource(R.drawable.edittext_back);
-                            Drawable img = getResources().getDrawable( R.drawable.arrow2x);
+                            //value.setBackgroundColor(Statics.color5);
+                            Drawable img = getResources().getDrawable( R.drawable.arrow2x);// arrowbest );
+                            //Drawable draw = prefetchDrawable(img);
                             if (metrix.densityDpi == DisplayMetrics.DENSITY_XHIGH) {
                                 Bitmap bitmap = ((BitmapDrawable) img).getBitmap();
 
@@ -376,11 +425,12 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             }
                             value.setCompoundDrawablesWithIntrinsicBounds(null, null, img, null);
                             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,
-                                    LayoutParams.WRAP_CONTENT);
-                            params.setMargins(0,0,0,(int)(28* metrix.density));
+                                    Float.valueOf(55 * metrix.density).intValue());
+                            params.setMargins(0,0,0,(int)(18 * metrix.density));
 
                             value.setLayoutParams(params);
 
+                            //value.getBackground().setColorFilter(Statics.color5, Mode.DST_OVER);
                             DialogDatePicker picker = new DialogDatePicker(2010, 5,5, value, ef);
                             final DatePickerDialog dialog = new DatePickerDialog(CustomFormPlugin.this, picker,  2010, 5,5);
 
@@ -398,7 +448,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             else
                             {
                                 String hint =getResources().getString(R.string.data_picker_hint);
-                                value.setTextColor(Color.parseColor("#8c8c8c"));
+                                value.setTextColor(Color.parseColor("#8c8c8c"));//"#99000000"));//Color.argb(125, Color.red(Statics.color1), Color.green(Statics.color1), Color.blue(Statics.color1)));
                                 value.setText(hint);
                             }
 
@@ -408,7 +458,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                                 @Override
                                 public void onClick(View view) {
 
-                                        dialog.show();
+                                    dialog.show();
                                 }
                             });
 
@@ -435,7 +485,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
                                     LayoutParams.WRAP_CONTENT,
                                     LayoutParams.WRAP_CONTENT);
-                            labelParams.setMargins(0,0,0, (int )(metrix.density));
+                            labelParams.setMargins(0,0,0, (int)(18 * metrix.density));
                             label.setLayoutParams(labelParams);
 
                             final CheckBox value = createCheckBox(this, ef);
@@ -450,6 +500,62 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             ll.addView(label);
                             ll.setBackgroundColor(Statics.color1);
                             groupLL.addView(ll);
+                        }else if (itemClass.equals(GroupItemPhotoPicker.class)){
+                            final GroupItemPhotoPicker ef =
+                                    (GroupItemPhotoPicker) group.getItems().get(i);
+                            final PhotoPickerLayout photoPickerLayout = GroupItemPhotoPickerCreator.create(ef, this);
+                            layouts.add(photoPickerLayout);
+                            photoPickerLayout.getButton().setOnClickListener(new OnClickListener() {
+                                @Override
+                                public void onClick( final View v) {
+                                    if (!photoPickerLayout.canAddPhoto()){
+                                        Toast.makeText(CustomFormPlugin.this,
+                                                R.string.custom_form_cant_add_photo,
+                                                Toast.LENGTH_LONG).show();
+                                                return;
+                                    }
+                                    final DialogSharing.Configuration.Builder sharingDialogBuilder = new DialogSharing.Configuration.Builder();
+                                    sharingDialogBuilder.addCustomListener(R.string.custom_form_camera, R.drawable.customform_camera, true, new DialogSharing.Item.OnClickListener() {
+                                        @Override
+                                        public void onClick() {
+                                            STARTED_LAYOUT_ID = photoPickerLayout.getUniqueId();
+
+                                            Intent intent;
+                                            if (Build.VERSION.SDK_INT >= 21)
+                                               intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                                            else
+                                                 intent = new Intent(CustomFormPlugin.this, CustomFormCameraActivity.class);
+
+                                            TEMP_FILE_NAME = "temp" + Long.valueOf(System.currentTimeMillis()) + ".jpg";
+                                            File f = new File(android.os.Environment
+                                                    .getExternalStorageDirectory(), TEMP_FILE_NAME);
+                                            intent.putExtra("output",
+                                                    Uri.fromFile(f));
+
+                                            startActivityForResult(intent,
+                                                    CAMERA_REQUEST);
+                                        }
+                                    });
+
+                                    sharingDialogBuilder.addCustomListener(R.string.custom_form_gallery, R.drawable.customform_gallery, true, new DialogSharing.Item.OnClickListener() {
+                                        @Override
+                                        public void onClick() {
+                                            STARTED_LAYOUT_ID = photoPickerLayout.getUniqueId();
+
+                                            Intent pictureActionIntent = new Intent(
+                                                    Intent.ACTION_PICK,
+                                                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                                                    //pictureActionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                                            startActivityForResult(
+                                                    pictureActionIntent,
+                                                    GALLERY_PICTURE);
+                                        }
+                                    });
+                                    showDialogSharing(sharingDialogBuilder.build());
+                                }
+                            });
+                            groupLL.addView(photoPickerLayout);
+
                         } else if (itemClass.equals(GroupItemDropDown.class)) {
                             final GroupItemDropDown ef =
                                     (GroupItemDropDown) group.getItems().get(i);
@@ -469,25 +575,26 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
 
                             final Button value = new Button (this);
-                            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-                            params.setMargins(0,0,0,28);
+                            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, Float.valueOf(55 * metrix.density).intValue());
+                            params.setMargins(0, 0, 0, (int) (18 * metrix.density));
                             value.setLayoutParams(params);
-                                    value.setTextSize(22);
-                            value.setGravity(Gravity.LEFT| Gravity.CENTER_VERTICAL);
-                            value.setTextColor(Color.parseColor("#E6000000"));
+                            value.setTextSize(22);
+                            value.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+                            value.setTextColor(Color.parseColor("#E6000000"));//Statics.color1);
                             value.setHeight((int) (44 * metrix.density));
                             value.setEllipsize(TextUtils.TruncateAt.END);
                             value.setSingleLine();
-                            value.setBackgroundResource(R.drawable.edittext_back);
+                            value.setBackgroundResource(R.drawable.edittext_back);//Color(Statics.color5);
 
                             Drawable img = getResources().getDrawable(R.drawable.arrow2x);
+                            // Drawable draw = prefetchDrawable(img);
                             if (metrix.densityDpi == DisplayMetrics.DENSITY_XHIGH ) {
                                 Bitmap bitmap = ((BitmapDrawable) img).getBitmap();
 
                                 bitmap = Bitmap.createScaledBitmap(bitmap, (int) (bitmap.getWidth()*1.5), (int)(bitmap.getHeight()*1.5), false);
                                 img = new BitmapDrawable(bitmap);
                             }
-                              value.setCompoundDrawablesWithIntrinsicBounds(null, null, img, null);
+                            value.setCompoundDrawablesWithIntrinsicBounds(null, null, img, null);
                             final ArrayList<String> dropItems = new ArrayList<String>();
 
                             for (Iterator<GroupItemDropDownItem> it1 = ef.getItems().iterator(); it1.hasNext();) {
@@ -527,10 +634,10 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
                             ll.addView(label);
                             ll.addView(value);
-                            ll.setPadding(0,0,0, 28);
+                            ll.setPadding(0, 0, 0, 28);
                             ll.setBackgroundColor(Statics.color1);
                             groupLL.addView(ll);
-                        } else if (itemClass.equals(GroupItemEntryField.class)) { 
+                        } else if (itemClass.equals(GroupItemEntryField.class)) { //едиттекст с подписью
                             final GroupItemEntryField ef =
                                     (GroupItemEntryField) group.getItems().get(i);
 
@@ -550,15 +657,13 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             EditText value = new EditText(this);
                             value.setHint(ef.getValue());
                             ef.setValue("");
-                            value.setHintTextColor(Color.parseColor("#8c8c8c"));
+                            value.setHintTextColor(Color.parseColor("#8c8c8c"));//value.setHintTextColor(Color.argb(125, Color.red(Statics.color1), Color.green(Statics.color1), Color.blue(Statics.color1)));
 
-                            value.setTextColor(Color.parseColor("#E6000000"));
-                                    value.setMaxLines(3);
+                            value.setTextColor(Color.parseColor("#E6000000"));//Statics.color1); //надо
+                            value.setMaxLines(3);
 
                             value.setVerticalScrollBarEnabled(true);
-                            value.setTextSize(22);
-                            value.setWidth((int)(44 * metrix.density));
-                            value.setHeight((int)(44 * metrix.density));
+                            value.setTextSize(18);
                             //value.setBackgroundColor(Statics.color5);
                             if (ef.getType().equalsIgnoreCase("number")) {
                                 value.setInputType(InputType.TYPE_CLASS_NUMBER
@@ -566,8 +671,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                                         | InputType.TYPE_NUMBER_FLAG_SIGNED);
                             }
                             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,
-                                    LayoutParams.WRAP_CONTENT);
-                            params.setMargins(0,0,0,(int)(28* metrix.density));
+                                    Float.valueOf(55 * metrix.density).intValue());
+                            params.setMargins(0,0,0,(int)(10* metrix.density));
 
                             value.setLayoutParams(params);
                             value.addTextChangedListener(new TextWatcher() {
@@ -587,6 +692,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
                             ll.addView(label);
                             ll.addView(value);
+                            // ll.setBackgroundColor(Statics.color1);
                             groupLL.addView(ll);
                         } else if (itemClass.equals(GroupItemRadioButton.class)) {
                             final GroupItemRadioButton ef =
@@ -603,7 +709,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                                     LayoutParams.WRAP_CONTENT,
                                     LayoutParams.WRAP_CONTENT);
-                            params.setMargins(0,0,0, (int) (20* metrix.density));
+                            params.setMargins(0,0,0, (int) (18* metrix.density));
                             label.setLayoutParams(params);
 
                             final RadioButton value = createRadioButton(this, ef, groupLL);
@@ -619,7 +725,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             ll.setBackgroundColor(Statics.color1);
                             groupLL.addView(ll);
                             value.setChecked(ef.isSelected());
-                        } else if (itemClass.equals(GroupItemTextArea.class)) { 
+                        } else if (itemClass.equals(GroupItemTextArea.class)) { //список с заголовком
                             final GroupItemTextArea ef =
                                     (GroupItemTextArea) group.getItems().get(i);
 
@@ -629,7 +735,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             TextView label = new TextView(this);
                             label.setText(ef.getLabel());
                             label.setTextSize(17);
-                            label.setPadding(0, 0, 0,  (int) (10 * metrix.density));
+                            label.setPadding(0, 0, 0, (int) (10 * metrix.density));
                             label.setTextColor(Statics.color3);
                             label.setBackgroundColor(Color.TRANSPARENT);
 
@@ -647,12 +753,13 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             });
 
                             final EditText value = new EditText(this);
-                            value.setLines(3);
+                            value.setGravity(Gravity.LEFT | Gravity.TOP);
+                            value.setLines(4);
                             value.setHint(ef.getValue());
                             ef.setValue("");
-                            value.setHintTextColor(Color.parseColor("#8c8c8c"));
-                            value.setTextColor(Color.parseColor("#E6000000"));
-                            value.setTextSize(22);
+                            value.setHintTextColor(Color.parseColor("#8c8c8c"));//value.setHintTextColor(Color.argb(125, Color.red(Statics.color1), Color.green(Statics.color1), Color.blue(Statics.color1)));
+                            value.setTextColor(Color.parseColor("#E6000000"));//Statics.color1);
+                            value.setTextSize(18);
                             value.setOnTouchListener(new View.OnTouchListener() {
                                 @Override
                                 public boolean onTouch(View v, MotionEvent event) {
@@ -661,20 +768,18 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                                     return false;
                                 }
                             });
+                            //value.setBackgroundColor(Statics.color5);
                             value.setBackgroundResource(R.drawable.edittext_back);
-                            value.setMinHeight((int) (44 * metrix.density));
-
-                            value.setWidth(((int)(44 * metrix.density)));
                             LinearLayout.LayoutParams para = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,
-                                    LayoutParams.WRAP_CONTENT);
+                                    Float.valueOf(55 * metrix.density).intValue());
                             value.setLayoutParams(para);
                             value.addTextChangedListener(new TextWatcher() {
                                 public void beforeTextChanged(CharSequence arg0,
-                                        int arg1, int arg2, int arg3) {
+                                                              int arg1, int arg2, int arg3) {
                                 }
 
                                 public void onTextChanged(CharSequence arg0,
-                                        int arg1, int arg2, int arg3) {
+                                                          int arg1, int arg2, int arg3) {
                                 }
 
                                 public void afterTextChanged(Editable arg0) {
@@ -684,7 +789,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             });
                             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT,
                                     LayoutParams.WRAP_CONTENT);
-                            params.setMargins(0,0,0,(int)(28* metrix.density));
+                            params.setMargins(0, 0, 0, (int) (18 * metrix.density));
                             value.setLayoutParams(params);
                             ll.addView(label);
                             ll.addView(value);
@@ -692,18 +797,21 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             groupLL.addView(ll);
                         }
                     }
+                    //сюда
                     View view = new View(this);
                     view.setBackgroundColor(Color.parseColor("#33000000"));
                     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT,
                             LayoutParams.WRAP_CONTENT);
+                    //params.height = 10000;
                     params.width = 10000;
                     params.setMargins(0, 0, 0, 0);
                     view.setMinimumHeight((int)( 1*getResources().getDisplayMetrics().density));
                     view.setLayoutParams(params);
                     view.setPadding(0,0,0,28);
                     view.setMinimumWidth(10000);
+//                    groupLL.addView(view);
 
-                    groupLL.setPadding((int)(17*getResources().getDisplayMetrics().density), 0, (int)(17*getResources().getDisplayMetrics().density), 0);
+                    groupLL.setPadding((int)(15*getResources().getDisplayMetrics().density), 0, (int)(15*getResources().getDisplayMetrics().density), 0);
 
                     container.addView(groupLL);
                     container.addView(view);
@@ -713,7 +821,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 buttonsLayout.setGravity(Gravity.CENTER);
 
                 for (Iterator<FormButton> it2 =
-                        forms.get(0).getButtons().iterator(); it2.hasNext();) {
+                     forms.get(0).getButtons().iterator(); it2.hasNext();) {
                     final FormButton fBtn = it2.next();
 
                     SpannableStringBuilder ssb = new SpannableStringBuilder();
@@ -722,18 +830,25 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
                     Button sendBtn = new Button(this);
-                    sendBtn.setText(ssb);
+                    if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+                        sendBtn.setAllCaps(false);
+                    sendBtn.setText(fBtn.getLabel());
                     float borderSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1, getResources().getDisplayMetrics());
                     sendBtn.setTextSize(22);
+//                    sendBtn.setTextColor(Statics.color5);
                     sendBtn.setTextColor(Statics.color1);
+
                     sendBtn.setMinimumWidth((int)(160* getResources().getDisplayMetrics().density));
                     GradientDrawable drawable = new GradientDrawable();
                     drawable.setShape(GradientDrawable.RECTANGLE);
                     drawable.setStroke((int) borderSize, Statics.color5);
+//                    drawable.setColor(Color.TRANSPARENT);
                     drawable.setColor(Statics.color5);
 
                     sendBtn.setBackgroundDrawable(drawable);
-                    LinearLayout.LayoutParams para =  new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+//                    LinearLayout.LayoutParams para =  new LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+//                    para.setMargins(0,(int)(20*getResources().getDisplayMetrics().density),0,(int)(15*getResources().getDisplayMetrics().density));
+                    LinearLayout.LayoutParams para =  new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, Float.valueOf(55 * getResources().getDisplayMetrics().density).intValue());
                     para.setMargins(0, (int) (20 * getResources().getDisplayMetrics().density), 0, (int) (15 * getResources().getDisplayMetrics().density));
                     sendBtn.setLayoutParams(para);
 
@@ -746,11 +861,33 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                                     forms.get(0).getSubject());
                             emailIntent.putExtra(android.content.Intent.EXTRA_EMAIL,
                                     new String[]{forms.get(0).getAddress()});
+
+                            Form form = forms.get(0);
+                            ArrayList<Uri> uris = new ArrayList<Uri>();
+
+                            for (Iterator<Group> it = form.getGroups().iterator(); it.hasNext();) {
+                                Group group = it.next();
+                                for (Iterator<GroupItem> it1 = group.getItems().iterator();
+                                     it1.hasNext();) {
+
+                                    GroupItem item = it1.next();
+
+                                     if (item instanceof GroupItemPhotoPicker){
+                                         GroupItemPhotoPicker pick = (GroupItemPhotoPicker) item;
+                                         for (PhotoPickerItem ppIt:pick.getPhotos())
+                                             uris.add( Uri.fromFile(new File(ppIt.getImageSource())));
+                                     }
+                                }
+                            }
+
+                            emailIntent.putExtra(Intent.EXTRA_STREAM, uris);
                             startActivity(emailIntent);
                         }
                     });
+                    sendBtn.setTypeface(null, Typeface.NORMAL);
+
                     buttonsLayout.addView(sendBtn);
-                    buttonsLayout.setPadding((int)(17*getResources().getDisplayMetrics().density), 0, (int)(17*getResources().getDisplayMetrics().density), 0);
+                    buttonsLayout.setPadding((int) (17 * getResources().getDisplayMetrics().density), 0, (int) (17 * getResources().getDisplayMetrics().density), 0);
                 }
 
                 container.addView(buttonsLayout);
@@ -807,15 +944,31 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
         Drawable uncheckedDraw = getResources().getDrawable(R.drawable.rb_off);
         Bitmap uncheckedBitmap =((BitmapDrawable)uncheckedDraw).getBitmap();
+        //начало
+
+        //Bitmap finalUncheckedBitmap =  Bitmap.createScaledBitmap(uncheckedBitmap, width, height, false);
         uncheckedBitmap = applyingColorFilter ( uncheckedBitmap);
+        //finalUncheckedBitmap = addExternalSize(finalUncheckedBitmap);
+
+        // finalUncheckedBitmap = getBitmapClippedCircle(finalUncheckedBitmap);
+        //конец
         Drawable checkedDraw = getResources().getDrawable(R.drawable.rb_on);
         Bitmap checkedBitmap =((BitmapDrawable)checkedDraw).getBitmap();
         checkedBitmap = applyingColorFilter ( checkedBitmap);
 
+       /* Bitmap finalCheckedBitmap = Bitmap.createScaledBitmap(checkedBitmap, width, height, false);
+        finalCheckedBitmap = addExternalSize(finalCheckedBitmap);
+        finalCheckedBitmap = getBitmapClippedCircle(finalCheckedBitmap);*/
+
+        //final BitmapDrawable finalChecked = new BitmapDrawable(checkedBitmap);
+
+        //final BitmapDrawable finalUnChecked = new BitmapDrawable(uncheckedBitmap);
+
         if (value.isChecked())
             value.setBackgroundResource(R.drawable.radiobtn_on2x);
         else
-        value.setBackgroundResource(R.drawable.radiobtn_off);
+            value.setBackgroundResource(R.drawable.radiobtn_off);
+        //value.setBackgroundDrawable(finalUnChecked);
 
         value.setWidth((int) (width * getResources().getDisplayMetrics().density));
         value.setHeight((int)(height*getResources().getDisplayMetrics().density ));
@@ -833,6 +986,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                         ef.setSelected(arg1);
                         if (arg1) {
                             value.setBackgroundResource(R.drawable.radiobtn_on2x);
+                            //value.setBackgroundDrawable(getResources().getDrawable(R.drawable.radiobtn_on));
+                            //  value.setButtonDrawable(checked);
                             value.setWidth((int) (width * getResources().getDisplayMetrics().density));
                             value.setHeight((int)(height*getResources().getDisplayMetrics().density ));
                             for (int viewNumb = 0; viewNumb < groupLL.getChildCount(); viewNumb++) {
@@ -855,7 +1010,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                     }
                 });
         value.setChecked(false);
-    return value;
+        return value;
     }
 
     private Bitmap applyingColorFilter(Bitmap uncheckedBitmap) {
@@ -909,6 +1064,17 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 LayoutParams.WRAP_CONTENT));
         params.setMargins(0,0,0,(int)(15*getResources().getDisplayMetrics().density));
         checkBox.setLayoutParams(params);
+        //checkBox.setMA(0,(int)(10* getResources().getDisplayMetrics().density),0, (int)(10* getResources().getDisplayMetrics().density));
+
+        // final GradientDrawable uncheckedDrawable = new GradientDrawable();
+        //uncheckedDrawable.setShape(GradientDrawable.RECTANGLE);
+        //uncheckedDrawable.setStroke((int) (1 * getResources().getDisplayMetrics().density), Statics.color5);
+        //uncheckedDrawable.setColor(Color.TRANSPARENT);
+        //uncheckedDrawable.setSize((int) (height * getResources().getDisplayMetrics().density), (int) (width * getResources().getDisplayMetrics().density));
+
+        // Drawable myIcon = getResources().getDrawable( R.drawable.checkbox_on );
+        // final Bitmap bitmap = ((BitmapDrawable) myIcon).getBitmap();
+        // final Drawable resultDrawable = new BitmapDrawable(Bitmap.createScaledBitmap(bitmap, (int) (height * getResources().getDisplayMetrics().scaledDensity),  (int) (width * getResources().getDisplayMetrics().density), false));
         checkBox.setBackgroundResource(R.drawable.checkbox_off);
 
         checkBox.setOnCheckedChangeListener(new OnCheckedChangeListener() {
@@ -917,11 +1083,14 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 if (b)
                 {
                     checkBox.setBackgroundResource(R.drawable.checkbox_on);
+                    //checkBox.setBackgroundDrawable(resultDrawable);
+                    // checkBox.getBackground().setColorFilter(Statics.color5, Mode.DST_ATOP);
                     checkBox.setWidth((int) (width * getResources().getDisplayMetrics().density));
                     checkBox.setHeight((int)(height*getResources().getDisplayMetrics().density ));
                 }
                 else {
                     checkBox.setBackgroundResource(R.drawable.checkbox_off);
+                    //checkBox.setBackgroundDrawable(uncheckedDrawable);
                     checkBox.setWidth((int) (width * getResources().getDisplayMetrics().density));
                     checkBox.setHeight((int) (height * getResources().getDisplayMetrics().density));
 
@@ -934,7 +1103,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
     }
 
     private Intent chooseEmailClient() {
-        Intent intent = new Intent(android.content.Intent.ACTION_SEND);
+        Intent intent = new Intent(android.content.Intent.ACTION_SEND_MULTIPLE);
         intent.setType("text/plain");
         final PackageManager pm = getPackageManager();
         final List<ResolveInfo> matches = pm.queryIntentActivities(intent, 0);
@@ -969,7 +1138,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
      * @return email text
      */
     private String prepareText(Form form) {
-        try {
+        try {//ErrorLogging
 
             StringBuilder sb = new StringBuilder();
 
@@ -981,7 +1150,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 sb.append("</b><br/>");
 
                 for (Iterator<GroupItem> it1 = group.getItems().iterator();
-                        it1.hasNext();) {
+                     it1.hasNext();) {
 
                     GroupItem item = it1.next();
 
@@ -1060,7 +1229,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 sb.append("<br>\n (sent from <a href=\"http://ibuildapp.com\">iBuildApp</a>)");
             }
 
-            return sb.toString();
+            return sb.toString();//text;
 
         } catch (Exception e) {
             Log.e("ROMAN_C", "lalala", e);
@@ -1130,5 +1299,121 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
             progressDialog.dismiss();
         }
         finish();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (resultCode == RESULT_OK && requestCode == CAMERA_REQUEST) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Bitmap bitmap = null;
+                    File f = new File(Environment.getExternalStorageDirectory()
+                            .toString());
+                    for (File temp : f.listFiles()) {
+                        if (temp.getName().equals(TEMP_FILE_NAME)) {
+                            f = temp;
+                            break;
+                        }
+                    }
+
+                    if (!f.exists())
+                        return;
+
+                        bitmap = ImageUtils.decodeSampledBitmapFromFile(f.getAbsolutePath(), 150, 150);
+
+                        Bitmap thumbnail = Bitmap.createScaledBitmap(bitmap, 75, 75, true);
+                        final PhotoPickerItem item = new PhotoPickerItem();
+                        item.setSource(bitmap);
+                        item.setThumbnail(bitmap);
+                        item.setImageSource(f.getAbsolutePath());
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                PhotoPickerLayout layout = null;
+                                for (PhotoPickerLayout indexLayout : layouts) {
+                                    if (indexLayout.getUniqueId() == STARTED_LAYOUT_ID) {
+                                        layout = indexLayout;
+                                        break;
+                                    }
+                                }
+                                if (layout != null) {
+                                    final PhotoPickerLayout finalLayout = layout;
+                                    layout.prepareInsert(new PhotoPickerLayout.OnPreparedListener() {
+                                        @Override
+                                        public void onPrepared() {
+                                            finalLayout.getItem().getPhotos().add(item);
+                                            finalLayout.getAdapter().notifyDataSetChanged();
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    } catch (Exception e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }).start();
+
+
+        } else if (resultCode == RESULT_OK && requestCode == GALLERY_PICTURE) {
+            if (data != null) {
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Bitmap bitmap;
+                        String selectedImagePath ;
+
+                        Uri selectedImage = data.getData();
+                        String[] filePath = { MediaStore.Images.Media.DATA };
+                        Cursor c = getContentResolver().query(selectedImage, filePath,
+                                null, null, null);
+                        c.moveToFirst();
+                        int columnIndex = c.getColumnIndex(filePath[0]);
+                        selectedImagePath = c.getString(columnIndex);
+                        c.close();
+
+                        if (selectedImagePath == null)
+                            return;
+
+                        bitmap = ImageUtils.decodeSampledBitmapFromFile(selectedImagePath, 150, 150);
+                        Bitmap thumbnail = Bitmap.createScaledBitmap(bitmap, bitmap.getWidth()/3, bitmap.getHeight()/3, true);
+                        final PhotoPickerItem item = new PhotoPickerItem();
+                        item.setSource(bitmap);
+                        item.setThumbnail(thumbnail);
+                        item.setImageSource(selectedImagePath);
+
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                PhotoPickerLayout layout = null;
+                                for (PhotoPickerLayout indexLayout : layouts) {
+                                    if (indexLayout.getUniqueId() == STARTED_LAYOUT_ID) {
+                                        layout = indexLayout;
+                                        break;
+                                    }
+                                }
+                                if (layout != null) {
+                                    final PhotoPickerLayout finalLayout = layout;
+                                    layout.prepareInsert(new PhotoPickerLayout.OnPreparedListener() {
+                                        @Override
+                                        public void onPrepared() {
+                                            finalLayout.getItem().getPhotos().add(item);
+                                            finalLayout.getAdapter().notifyDataSetChanged();
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }).start();
+
+            }
+        }
     }
 }

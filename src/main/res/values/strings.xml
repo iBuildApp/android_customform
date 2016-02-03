@@ -11,4 +11,11 @@
     
     <string name="roamnblack_custom_form">Custom form</string>
     <string name="common_home_upper">Home</string>
+    <string name="custom_form_camera">Camera</string>
+    <string name="custom_form_gallery">Gallery</string>
+    <string name="custom_form_cant_add_photo">You have reached the limit of photos</string>
+    <string name="common_back_upper">Back</string>
+    <string name="custom_form_alert_no_camera">Your device have no camera.</string>
+    <string name="custom_form_alert_camera_error">Camera error! Please try again.</string>
+    <string name="custom_form_alert_cannot_init_camera">Cannot initialize camera.</string>
 </resources>

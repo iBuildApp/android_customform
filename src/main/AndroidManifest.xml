@@ -2,7 +2,17 @@
     package="com.ibuildapp.romanblack.CustomFormPlugin">
 
     <application>
-        <activity android:name="CustomFormPlugin"/>
-    </application>
+        <activity android:name=".CustomFormCameraActivity"/>
 
+        <activity android:name=".PhotoViewActivity"
+            android:screenOrientation="portrait"/>
+
+        <activity android:name="CustomFormPlugin"
+            android:screenOrientation="portrait"/>
+    </application>
+    <activity android:name="com.android.camera.Camera"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        android:screenOrientation="portrait"
+        android:clearTaskOnLaunch="true"
+        android:taskAffinity="android.task.camera"/>
 </manifest>

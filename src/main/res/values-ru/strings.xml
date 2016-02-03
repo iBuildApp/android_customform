@@ -7,4 +7,11 @@
     <string name="alert_no_internet">Мобильный интернет отключен. Включите интернет, либо используйте WiFi</string>
     <string name="roamnblack_custom_form">Форма ввода</string>
     <string name="common_home_upper">Домой</string>
+    <string name="custom_form_camera">Камера</string>
+    <string name="custom_form_gallery">Галерея</string>
+    <string name="custom_form_cant_add_photo">Вы добавили максимальное количество фотографий</string>
+    <string name="common_back_upper">Назад</string>
+    <string name="custom_form_alert_no_camera">Ваш телефон не содержит камеру.</string>
+    <string name="custom_form_alert_camera_error">Ошибка камеры. Попробуйте снова.</string>
+    <string name="custom_form_alert_cannot_init_camera">Невозможно инициализировать камеру.</string>
 </resources>

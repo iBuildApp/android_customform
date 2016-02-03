@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+<TextView
+    android:id="@+id/custom_form_photo_picker_label"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:textSize="16sp"
+    android:layout_marginTop="5dp"/>
+    <Button
+        android:id="@+id/custom_form_photo_picker_button"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="15dp"
+        android:layout_gravity="left|center_vertical"
+        android:textColor="#E6000000"
+        android:singleLine="true"
+        android:ellipsize="end"/>
+    <android.support.v7.widget.RecyclerView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:id="@+id/custom_form_photo_picker_photos_grid"
+        android:layout_marginBottom="15dp"/>
+</merge>

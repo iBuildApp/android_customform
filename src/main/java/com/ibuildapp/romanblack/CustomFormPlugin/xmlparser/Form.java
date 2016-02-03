@@ -1,4 +1,6 @@
-package com.ibuildapp.romanblack.CustomFormPlugin;
+package com.ibuildapp.romanblack.CustomFormPlugin.xmlparser;
+
+import com.ibuildapp.romanblack.CustomFormPlugin.groups.Group;
 
 import java.util.ArrayList;
 
