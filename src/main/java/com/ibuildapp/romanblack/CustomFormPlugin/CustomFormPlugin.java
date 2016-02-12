@@ -431,8 +431,9 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                             value.setLayoutParams(params);
 
                             //value.getBackground().setColorFilter(Statics.color5, Mode.DST_OVER);
-                            DialogDatePicker picker = new DialogDatePicker(2010, 5,5, value, ef);
-                            final DatePickerDialog dialog = new DatePickerDialog(CustomFormPlugin.this, picker,  2010, 5,5);
+                            Calendar c = Calendar.getInstance();
+                            DialogDatePicker picker = new DialogDatePicker(c.get(Calendar.YEAR), c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH), value, ef);
+                            final DatePickerDialog dialog = new DatePickerDialog(CustomFormPlugin.this, picker,  c.get(Calendar.YEAR), c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH));
 
                             Date date = ef.getDate();
                             if (ef.isSet()) {
