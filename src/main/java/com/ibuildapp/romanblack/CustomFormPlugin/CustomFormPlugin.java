@@ -47,6 +47,7 @@ import android.widget.*;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import com.appbuilder.sdk.android.AppBuilderModuleMain;
 import com.appbuilder.sdk.android.DialogSharing;
+import com.appbuilder.sdk.android.StartUpActivity;
 import com.appbuilder.sdk.android.Utils;
 import com.appbuilder.sdk.android.Widget;
 import com.ibuildapp.romanblack.CustomFormPlugin.creators.GroupItemPhotoPickerCreator;
@@ -77,6 +78,7 @@ import java.util.*;
  * Main module class. Module entry point.
  * Represents custom form widget.
  */
+@StartUpActivity(moduleName = "CustomForm")
 public class CustomFormPlugin extends AppBuilderModuleMain {
     protected static final int CAMERA_REQUEST = 0;
     protected static final int GALLERY_PICTURE = 1;
