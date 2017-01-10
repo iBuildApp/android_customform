@@ -249,10 +249,6 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 setTopBarTitle(getResources().getString(R.string.roamnblack_custom_form));
             }
 
-            if (widget.getPluginXmlData().length() == 0) {
-                handler.sendEmptyMessageDelayed(INITIALIZATION_FAILED, 100);
-                return;
-            }
             // topbar initialization
             setTopBarLeftButtonText(getResources().getString(R.string.common_home_upper), true, new View.OnClickListener() {
                 @Override
@@ -314,8 +310,11 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                 @Override
                 public void run() {
                     try {//ErrorLogging
+                        String xml = widget.getPluginXmlData().length() == 0
+                                ? Utils.readXmlFromFile(widget.getPathToXmlFile())
+                                : widget.getPluginXmlData();
 
-                        EntityParser parser = new EntityParser(widget.getPluginXmlData());
+                        EntityParser parser = new EntityParser(xml);
                         parser.parse();
 
                         title = widget.getTitle();
