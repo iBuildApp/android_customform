@@ -10,6 +10,7 @@
  ****************************************************************************/
 package com.ibuildapp.romanblack.CustomFormPlugin;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
@@ -35,6 +36,9 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.text.*;
 import android.text.style.StyleSpan;
 import android.util.DisplayMetrics;
@@ -101,6 +105,8 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
     private ProgressDialog progressDialog = null;
     private ArrayList<Form> forms = new ArrayList<Form>();
     private List<PhotoPickerLayout> layouts = new ArrayList<>();
+    public  Intent intent_cam;
+    public  PhotoPickerLayout photoPickerLayout;
 
     private Handler handler = new Handler() {
         @Override
@@ -505,7 +511,7 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                         }else if (itemClass.equals(GroupItemPhotoPicker.class)){
                             final GroupItemPhotoPicker ef =
                                     (GroupItemPhotoPicker) group.getItems().get(i);
-                            final PhotoPickerLayout photoPickerLayout = GroupItemPhotoPickerCreator.create(ef, this);
+                            photoPickerLayout = GroupItemPhotoPickerCreator.create(ef, this);
                             layouts.add(photoPickerLayout);
                             photoPickerLayout.getButton().setOnClickListener(new OnClickListener() {
                                 @Override
@@ -521,21 +527,28 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
                                         @Override
                                         public void onClick() {
                                             STARTED_LAYOUT_ID = photoPickerLayout.getUniqueId();
+                                            int permissionCheck = ContextCompat.checkSelfPermission(CustomFormPlugin.this,
+                                                    Manifest.permission.CAMERA);
 
-                                            Intent intent;
-                                            if (Build.VERSION.SDK_INT >= 21)
-                                               intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                                            else
-                                                 intent = new Intent(CustomFormPlugin.this, CustomFormCameraActivity.class);
+                                            if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+                                                ActivityCompat.requestPermissions(CustomFormPlugin.this,
+                                                        new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                                                        CAMERA_REQUEST);
+                                            } else {
 
-                                            TEMP_FILE_NAME = "temp" + Long.valueOf(System.currentTimeMillis()) + ".jpg";
-                                            File f = new File(android.os.Environment
-                                                    .getExternalStorageDirectory(), TEMP_FILE_NAME);
-                                            intent.putExtra("output",
-                                                    Uri.fromFile(f));
+                                            /*    if (Build.VERSION.SDK_INT >= 21)
+                                                    intent_cam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                                                else*/
+                                                    intent_cam = new Intent(CustomFormPlugin.this, CustomFormCameraActivity.class);
+                                                TEMP_FILE_NAME = "temp" + Long.valueOf(System.currentTimeMillis()) + ".jpg";
+                                                File f = new File(android.os.Environment
+                                                        .getExternalStorageDirectory(), TEMP_FILE_NAME);
+                                                intent_cam.putExtra("output",
+                                                        Uri.fromFile(f));
 
-                                            startActivityForResult(intent,
-                                                    CAMERA_REQUEST);
+                                                startActivityForResult(intent_cam,
+                                                        CAMERA_REQUEST);
+                                            }
                                         }
                                     });
 
@@ -902,6 +915,36 @@ public class CustomFormPlugin extends AppBuilderModuleMain {
 
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case CAMERA_REQUEST: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    STARTED_LAYOUT_ID = photoPickerLayout.getUniqueId();
+                 /*   if (Build.VERSION.SDK_INT >= 21)
+                            intent_cam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                    else*/
+                        intent_cam = new Intent(CustomFormPlugin.this, CustomFormCameraActivity.class);
+                    TEMP_FILE_NAME = "temp" + Long.valueOf(System.currentTimeMillis()) + ".jpg";
+                    File f = new File(android.os.Environment
+                            .getExternalStorageDirectory(), TEMP_FILE_NAME);
+                    intent_cam.putExtra("output",
+                            Uri.fromFile(f));
+
+                    startActivityForResult(intent_cam,
+                            CAMERA_REQUEST);
+
+                } else {
+                    finish();
+                }
+                return;
+            }
         }
     }
 
